@@ -1,0 +1,29 @@
+[project]
+name = "quas-utils"
+version = "0.0.2"
+description = "A collection of utilities for the QUAS ecosystem"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+authors = [
+    {name = "Emmanuel Olowu", email = "zeddyemy@gmail.com"}
+]
+license = {text = "MIT"}
+keywords = ["QUAS", "Utils", "date_time", "timezones"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+
+[build-system]
+requires = ["setuptools>=78.1.0", "wheel>=0.45.1"]
+build-backend = "setuptools.build_meta"
+
+[[tool.uv.index]]
+name = "quas-utils"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
