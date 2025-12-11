@@ -1,35 +1,63 @@
 # quas-utils
 
-Flask-oriented utilities: date/time helpers, decorators, and misc helpers for Flask + SQLAlchemy stacks.
+Flask-focused helpers for quick, practical tasks: HTTP responses, retry/timing decorators, timezone-aware datetime utilities, simple logging, and a handful of misc helpers (slugging, random strings, key normalization).
 
 ## Install
 
 ```bash
 python -m pip install quas-utils
+# or for local dev
+python -m pip install -e .
 ```
 
-## Contents
-- `quas_utils.date_time`: UTC helpers, formatting/parsing, fixed GMT+1 conversion.
-- `quas_utils.decorators`: `retry` for DB-backed retries, `get_time` for simple timing logs.
-- `quas_utils.misc`: Flask/SQLAlchemy helpers (pagination, slugs, key normalization, etc.).
-- `quas_utils.helpers.loggers`: Thin logging helpers that use Flask app logger when available.
+## What’s inside
+- HTTP responses: `success_response`, `error_response` for consistent JSON replies.
+- Decorators: `retry` for flaky DB calls; `get_time` to log execution time.
+- Date/time: `QuasDateTime` helpers and `to_gmt1_or_none` for fixed GMT+1 conversions.
+- Logging: `console_log`, `log_exception` thin wrappers over Flask/logging.
+- Misc: slug generation, key normalization to `snake_case`, random strings/numbers, pagination.
 
-## Usage
+## Quickstart (Flask)
 
-### Date/time
 ```python
-from quas_utils.date_time import QuasDateTime, to_gmt1_or_none
+from flask import Flask
+from quas_utils.api import success_response, error_response
+from quas_utils.decorators import retry, get_time
+from quas_utils.logging.loggers import console_log
 
-now_utc = QuasDateTime.aware_utcnow()
-readable = QuasDateTime.format_date_readable(now_utc)  # e.g., "10th December"
-gmt1 = to_gmt1_or_none(now_utc)  # fixed +1h offset
+app = Flask(__name__)
+
+@app.route("/health")
+def health():
+    return success_response("ok", 200, {"service": "quas-utils"})
+
+@app.route("/fragile")
+@retry(retries=3, delay=1.5)
+@get_time
+def fragile_work():
+    console_log("INFO", "doing work…")
+    # raise on failure; retry will handle
+    return success_response("done", 200)
+
+@app.errorhandler(Exception)
+def on_error(err):
+    return error_response(str(err), 500)
+```
+
+## API cheat sheet
+
+### HTTP responses
+```python
+from quas_utils.api import success_response, error_response
+success_response("created", 201, {"id": 1})
+error_response("not found", 404)
 ```
 
 ### Decorators
 ```python
 from quas_utils.decorators import retry, get_time
 
-@retry(retries=3, delay=1.5)
+@retry(retries=5, delay=2)
 def fetch_from_db():
     ...
 
@@ -38,41 +66,43 @@ def heavy_work():
     ...
 ```
 
-### Misc Flask helpers
+### Date/time
+```python
+from quas_utils.date_time import QuasDateTime, to_gmt1_or_none
+
+now = QuasDateTime.aware_utcnow()
+pretty = QuasDateTime.format_date_readable(now)
+gmt1 = to_gmt1_or_none(now)
+```
+
+### Logging helpers
+```python
+from quas_utils.logging.loggers import console_log, log_exception
+
+console_log("INFO", "starting job")
+try:
+    risky()
+except Exception as exc:
+    log_exception("risky failed", exc)
+```
+
+### Misc helpers
 ```python
 from quas_utils.misc import (
-    paginate_results,
     normalize_keys,
+    generate_random_string,
+    generate_random_number,
     generate_slug,
-    int_or_none,
-    get_or_404,
-    redirect_url,
-    parse_bool,
+    paginate_results,
 )
 
-# Pagination (expects objects with .to_dict())
-page_items = paginate_results(request, results, result_per_page=20)
-
-# Key normalization (handles acronyms)
-payload = {"userID": 1, "HTTPCode": 200}
-normalized = normalize_keys(payload)  # {"user_id": 1, "http_code": 200}
-
-# Slug generation (Flask-SQLAlchemy models)
-slug = generate_slug("My Name", model=MyModel, max_attempts=5, add_timestamp=True)
-
-# Safe int parsing
-value = int_or_none(request.args.get("count"))
-
-# Fetch or abort
-item = get_or_404(MyModel.query.filter_by(id=123))
-
-# Redirect helper
-next_url = redirect_url(default="admin.index")
-
-# Boolean parsing
-flag = parse_bool(request.args.get("active"))
+normalize_keys({"firstName": "Ada", "address": {"zipCode": "12345"}})
+generate_random_string(length=12, prefix="user")
+generate_random_number(length=6)
+# generate_slug expects a SQLAlchemy model with `.query`
 ```
 
 ## Notes
-- Targets Flask + SQLAlchemy; dependencies are declared in `pyproject.toml`.
-- GMT+1 conversion is a fixed offset (no DST). Use `zoneinfo` if you need real timezone handling.
+- Target Python: 3.12+
+- Depends on Flask; `retry` expects SQLAlchemy installed for DB-related exceptions.
+- The project uses the `src/` layout; imports are always `quas_utils.*` (no `src` in paths).

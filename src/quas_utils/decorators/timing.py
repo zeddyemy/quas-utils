@@ -6,7 +6,7 @@ from functools import wraps
 from time import perf_counter
 from typing import Any, Callable
 
-from quas_utils.helpers.loggers import console_log
+from quas_utils.logging.loggers import console_log
 
 
 def get_time(func: Callable) -> Callable:
